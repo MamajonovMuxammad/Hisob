@@ -4,18 +4,24 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const DOC_TYPES = [
-  { icon: '📄', key: 'invoice',   label: 'Счёт-фактура',        fields: ['Кому (организация/ФИО)', 'ИНН получателя', 'Наименование услуги/товара', 'Количество', 'Цена (сум)', 'НДС (да/нет)'] },
-  { icon: '✅', key: 'act',      label: 'Акт выполненных работ', fields: ['Заказчик', 'ИНН заказчика', 'Описание работ', 'Сумма (сум)'] },
-  { icon: '📦', key: 'waybill',  label: 'Накладная',             fields: ['Получатель', 'ИНН', 'Наименование товара', 'Количество', 'Цена (сум)'] },
-  { icon: '📝', key: 'contract', label: 'Договор услуг',         fields: ['Заказчик', 'ИНН заказчика', 'Описание услуг', 'Сумма (сум)', 'Срок исполнения'] },
-  { icon: '💵', key: 'payslip',  label: 'Расчётный лист',        fields: ['ФИО сотрудника', 'Должность', 'Оклад (сум)', 'Месяц/год'] },
+  { icon: '📄', key: 'invoice', label: 'Счёт-фактура', fields: ['Кому (Организация/ФИО)', 'ИНН покупателя', 'Адрес покупателя', 'Р/с и Банк покупателя', 'МФО', 'Наименование услуги/товара', 'Количество', 'Цена (сум)', 'НДС (если есть)'] },
+  { icon: '✅', key: 'act', label: 'Акт выполненных работ', fields: ['Заказчик (Организация/ФИО)', 'ИНН заказчика', 'Адрес заказчика', 'Р/с и Банк заказчика', 'МФО', 'Телефоны сторон', 'Описание работ', 'Сумма (сум)'] },
+  { icon: '📦', key: 'waybill', label: 'Накладная', fields: ['Получатель', 'ИНН получателя', 'Адрес доставки', 'Водитель/Автомобиль', 'Наименование товара', 'Количество', 'Цена (сум)'] },
+  { icon: '📝', key: 'contract', label: 'Договор услуг', fields: ['Заказчик', 'ИНН заказчика', 'Адрес (юридический)', 'Р/с, Банк, МФО', 'Ф.И.О. руководителя Заказчика', 'Предмет договора (описание)', 'Сумма (сум)', 'Срок исполнения (дней)'] },
+  { icon: '💵', key: 'payslip', label: 'Расчётный лист', fields: ['ФИО сотрудника', 'ПИНФЛ и ИНПС', 'Должность', 'Оклад (сум)', 'Премия/Удержания', 'Месяц/год'] },
 ]
 
 async function generateDoc(type, fields, settings) {
   const company = settings?.company || 'Ваша компания'
   const inn = settings?.inn || '—'
   const director = settings?.director || '—'
-  const prompt = `Сгенерируй документ "${type}" для компании "${company}" (ИНН: ${inn}), директор: ${director}.\nДанные:\n${JSON.stringify(fields, null, 2)}\nОформи красиво с разделителями. Укажи все обязательные реквизиты по законодательству РУз.`
+  const prompt = `Сгенерируй ГОТОВЫЙ документ "${type}" для компании "${company}" (ИНН: ${inn}, Директор: ${director}).
+Данные:
+${JSON.stringify(fields, null, 2)}
+ВАЖНО:
+1. Выведи ТОЛЬКО текст документа, никаких "Вот ваш документ" в начале или конце.
+2. Категорически ЗАПРЕЩАЮ использовать квадратные или круглые скобки вроде [Указать адрес] или (Пример). Если данных нет в "Данные:" выше, оставляй просто пустое место "_______________" для заполнения от руки.
+3. Оформи максимально красиво в Markdown, соблюдая все реквизиты.`;
 
   const res = await fetch('/api/gemini', {
     method: 'POST',
@@ -105,7 +111,32 @@ function CreateModal({ docType, onClose, onCreated }) {
                 WinPrint.document.close();
                 WinPrint.focus();
                 WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
-              }}>🖨️ Скачать PDF / Печать</button>
+              }}>🖨️ Печать</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => {
+                const element = document.getElementById(`pdf-create-${docType.key}`);
+                const clone = element.cloneNode(true);
+                clone.style.background = '#ffffff';
+                clone.style.color = '#000000';
+                clone.style.padding = '40px';
+                clone.style.borderRadius = '0';
+                clone.style.fontSize = '12px';
+                clone.style.maxHeight = 'none';
+                clone.style.overflow = 'visible';
+                const tds = clone.querySelectorAll('th, td');
+                tds.forEach(td => td.style.border = '1px solid #ccc');
+                const ths = clone.querySelectorAll('th');
+                ths.forEach(th => th.style.background = '#f5f5f5');
+                const headings = clone.querySelectorAll('h1, h2, h3, h4');
+                headings.forEach(h => h.style.color = '#000000');
+                
+                window.html2pdf().set({
+                  margin: 10,
+                  filename: `${docType.label}.pdf`,
+                  image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2 },
+                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                }).from(clone).save();
+              }}>⬇️ Скачать PDF</button>
             </div>
           </div>
         )}
@@ -138,7 +169,32 @@ function ViewModal({ doc, onClose }) {
             WinPrint.document.close();
             WinPrint.focus();
             WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
-          }}>🖨️ Скачать PDF / Печать</button>
+          }}>🖨️ Печать</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const element = document.getElementById(`pdf-view-${doc.id}`);
+            const clone = element.cloneNode(true);
+            clone.style.background = '#ffffff';
+            clone.style.color = '#000000';
+            clone.style.padding = '40px';
+            clone.style.borderRadius = '0';
+            clone.style.fontSize = '12px';
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            const tds = clone.querySelectorAll('th, td');
+            tds.forEach(td => td.style.border = '1px solid #ccc');
+            const ths = clone.querySelectorAll('th');
+            ths.forEach(th => th.style.background = '#f5f5f5');
+            const headings = clone.querySelectorAll('h1, h2, h3, h4');
+            headings.forEach(h => h.style.color = '#000000');
+            
+            window.html2pdf().set({
+              margin: 10,
+              filename: `${doc.name}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2 },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(clone).save();
+          }}>⬇️ Скачать PDF</button>
         </div>
       </div>
     </div>

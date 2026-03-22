@@ -147,7 +147,32 @@ function PayslipModal({ emp, onClose }) {
                 WinPrint.document.close();
                 WinPrint.focus();
                 WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
-              }}>🖨️ Скачать PDF / Печать</button>
+              }}>🖨️ Печать</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => {
+                const element = document.getElementById(`pdf-payslip-${emp.id}`);
+                const clone = element.cloneNode(true);
+                clone.style.background = '#ffffff';
+                clone.style.color = '#000000';
+                clone.style.padding = '40px';
+                clone.style.borderRadius = '0';
+                clone.style.fontSize = '12px';
+                clone.style.maxHeight = 'none';
+                clone.style.overflow = 'visible';
+                const tds = clone.querySelectorAll('th, td');
+                tds.forEach(td => td.style.border = '1px solid #ccc');
+                const ths = clone.querySelectorAll('th');
+                ths.forEach(th => th.style.background = '#f5f5f5');
+                const headings = clone.querySelectorAll('h1, h2, h3, h4');
+                headings.forEach(h => h.style.color = '#000000');
+                
+                window.html2pdf().set({
+                  margin: 10,
+                  filename: `расчётный_лист_${emp.name}.pdf`,
+                  image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2 },
+                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                }).from(clone).save();
+              }}>⬇️ Скачать PDF</button>
             </div>
           </>
         )}
