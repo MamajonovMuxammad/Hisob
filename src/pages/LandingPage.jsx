@@ -1,113 +1,190 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '../lib/supabase';
 
-export default function LandingPage({ onStart }) {
+export default function LandingPage({ onLoggedIn }) {
   const [scrolled, setScrolled] = useState(false);
+  const [authMode, setAuthMode] = useState(null); // 'phone' | 'oauth' | null
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const parallaxRef = useRef(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+      if (parallaxRef.current) {
+        const scrolledVal = window.scrollY;
+        parallaxRef.current.style.transform = `translateY(${scrolledVal * 0.4}px)`;
+      }
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleGoogleLogin = async () => {
+    setLoading(true); setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  const handlePhoneLogin = async () => {
+    if (!phone) return setError('Введите номер телефона');
+    setLoading(true); setError('');
+    const { error } = await supabase.auth.signInWithOtp({ phone: phone.replace(/[^0-9+]/g, '') });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      setOtpSent(true);
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp) return setError('Введите код из СМС');
+    setLoading(true); setError('');
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone: phone.replace(/[^0-9+]/g, ''),
+      token: otp,
+      type: 'sms'
+    });
+    if (error) setError(error.message);
+    if (data?.session) {
+      onLoggedIn(data.session);
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="landing-page">
+    <div className="landing-page dark-mode">
       {/* Header */}
       <header className={`landing-header ${scrolled ? 'scrolled' : ''}`}>
         <div className="landing-container header-inner">
-          <div className="logo-glow">
-            <span style={{ fontSize: 24 }}>🤖</span>
-            <span style={{ fontWeight: 800, fontSize: 20 }}>Hisob.<span style={{ color: '#4F8EF7' }}>AI</span></span>
+          <div className="logo-glow" style={{ fontSize: 24, fontWeight: 800 }}>
+            🤖 Hisob.<span style={{ color: '#4F8EF7' }}>AI</span>
           </div>
-          <button className="btn btn-primary" onClick={onStart} style={{ padding: '12px 28px', borderRadius: 30 }}>
-            Войти в систему →
-          </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn btn-ghost" onClick={() => document.getElementById('about').scrollIntoView({behavior: 'smooth'})}>О нас</button>
+            <button className="btn btn-primary" onClick={() => setAuthMode('choice')} style={{ borderRadius: 30, padding: '10px 24px' }}>Вход / Регистрация</button>
+          </div>
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Parallax */}
       <section className="hero-section">
+        <div className="parallax-bg" ref={parallaxRef}></div>
         <div className="glow-sphere s1"></div>
-        <div className="glow-sphere s2"></div>
+        <div className="glow-sphere s3"></div>
         <div className="landing-container hero-content">
-          <span className="badge badge-blue" style={{ marginBottom: 20, padding: '6px 16px', fontSize: 13, background: 'rgba(79, 142, 247, 0.1)' }}>
-            ✨ Первый ИИ-бухгалтер в Узбекистане
+          <span className="badge badge-purple bounce-anim" style={{ marginBottom: 24, padding: '8px 20px', fontSize: 13, background: 'rgba(128, 90, 213, 0.15)', border: '1px solid rgba(128, 90, 213, 0.5)' }}>
+            🔥 Автоматизация бухгалтерии 2026
           </span>
-          <h1 className="hero-title">Поручите бухгалтерию<br/>искуственному интеллекту</h1>
-          <p className="hero-subtitle">
-            Hisob.AI автоматически считает налоги, генерирует акты, счета-фактуры и договоры. 
-            Создан специально для ИП и ООО Республики Узбекистан.
+          <h1 className="hero-title slide-up">Искусственный интеллект<br />в роли вашего главного бухгалтера</h1>
+          <p className="hero-subtitle slide-up fade-in" style={{ animationDelay: '0.2s' }}>
+            Hisob.AI — это революционная платформа для управления финансами, налогами и документооборотом в Узбекистане. 
+            Делегируйте рутину нейросетям и сосредоточьтесь на развитии бизнеса.
           </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 40 }}>
-            <button className="btn btn-primary btn-lg" onClick={onStart}>
-              Начать бесплатно
-            </button>
-            <button className="btn btn-ghost btn-lg" onClick={() => document.getElementById('features').scrollIntoView({behavior: 'smooth'})}>
-              Как это работает?
+          <div className="slide-up fade-in" style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 40, animationDelay: '0.4s' }}>
+            <button className="btn btn-primary btn-lg pulse-shadow" onClick={() => setAuthMode('choice')}>
+              Начать бесплатно →
             </button>
           </div>
           
-          <div className="hero-dashboard-mockup fade-up" style={{ animationDelay: '0.2s' }}>
-            <div className="mockup-header">
-              <span className="dot"></span><span className="dot"></span><span className="dot"></span>
-            </div>
-            <div className="mockup-body">
-              <div style={{ width: 200, borderRight: '1px solid #2D3748', padding: 20 }}>
-                <div style={{ background: '#2D3748', height: 20, borderRadius: 4, marginBottom: 16 }}></div>
-                <div style={{ background: '#1c2333', height: 16, borderRadius: 4, marginBottom: 12 }}></div>
-                <div style={{ background: '#1c2333', height: 16, borderRadius: 4, width: '80%' }}></div>
-              </div>
-              <div style={{ flex: 1, padding: 30 }}>
-                <div style={{ background: 'linear-gradient(90deg, #4F8EF7, #805ad5)', height: 120, borderRadius: 12, marginBottom: 20 }}></div>
-                <div style={{ display: 'flex', gap: 20 }}>
-                  <div style={{ background: '#1c2333', height: 80, borderRadius: 8, flex: 1 }}></div>
-                  <div style={{ background: '#1c2333', height: 80, borderRadius: 8, flex: 1 }}></div>
-                </div>
-              </div>
+          <div className="hero-dashboard-mockup slide-up fade-in" style={{ animationDelay: '0.6s', marginTop: 60 }}>
+            {/* Visual Glassmorphism Mockup */}
+            <div className="mockup-header"><span className="dot"/><span className="dot"/><span className="dot"/></div>
+            <div className="mockup-body mockup-glass">
+               <div style={{ padding: 40, textAlign: 'center' }}>
+                 <div style={{ fontSize: 64, marginBottom: 20 }}>📊</div>
+                 <h2 style={{ fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 10 }}>Финансовый отчёт сгенерирован</h2>
+                 <p style={{ color: '#A0AEC0' }}>Ваши налоги, сотрудники и счета-фактуры синхронизированы в реальном времени.</p>
+               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="features-section">
+      {/* About / Long Content Section */}
+      <section id="about" className="about-section">
         <div className="landing-container">
-          <h2 className="section-title">Всё, что нужно вашему бизнесу</h2>
-          <div className="features-grid">
-            <div className="feature-card fade-up">
-              <div className="f-icon">💬</div>
-              <div className="f-title">Умный ИИ-Консультант</div>
-              <div className="f-desc">Задайте любой вопрос по налоговому кодексу РУз, и ИИ ответит на понятном языке. От расчета НДС до оформления сотрудников.</div>
+          <div className="split-layout">
+            <div className="split-text slide-up scroll-reveal">
+              <h2 style={{ fontSize: 42, fontWeight: 800, marginBottom: 24, color: '#fff' }}>Кто мы и что мы делаем?</h2>
+              <p style={{ fontSize: 18, color: '#A0AEC0', lineHeight: 1.8, marginBottom: 20 }}>
+                В современном мире малый бизнес тратит до 30% времени на бумажную волокиту и споры с налоговой. 
+                <strong> Hisob.AI</strong> — это первый в СНГ ИИ-бухгалтер, обученный на свежей налоговой базе и кодексах Республики Узбекистан.
+              </p>
+              <p style={{ fontSize: 18, color: '#A0AEC0', lineHeight: 1.8 }}>
+                Мы не просто формируем документы. Наша нейросеть анализирует ваши нужды, консультирует как живой специалист с 20-летним стажем и страхует от пени и штрафов.
+              </p>
             </div>
-            <div className="feature-card fade-up" style={{ animationDelay: '0.1s' }}>
-              <div className="f-icon">📄</div>
-              <div className="f-title">Мгновенные Документы</div>
-              <div className="f-desc">Генерируйте профессиональные счета-фактуры, акты и договоры с полными реквизитами в один клик. Идеальный экспорт в PDF.</div>
-            </div>
-            <div className="feature-card fade-up" style={{ animationDelay: '0.2s' }}>
-              <div className="f-icon">💰</div>
-              <div className="f-title">Налоговые Калькуляторы</div>
-              <div className="f-desc">Точный расчет УСН, налога на прибыль, НДФЛ и социальных налогов (ИНПС, соцналог). Никогда не переплачивайте.</div>
-            </div>
-            <div className="feature-card fade-up" style={{ animationDelay: '0.3s' }}>
-              <div className="f-icon">👥</div>
-              <div className="f-title">Управление Штатом</div>
-              <div className="f-desc">Ведите учет сотрудников, ГПД, автоматически формируйте расчётные листки и контролируйте фонд оплаты труда (ФОТ).</div>
+            <div className="split-visual scroll-reveal">
+              <div className="glass-card stat-card stat-blue bounce-anim">
+                <div style={{ fontSize: 40, fontWeight: 800, color: '#4F8EF7' }}>0 ₽</div>
+                <div style={{ color: '#A0AEC0', marginTop: 10 }}>Ошибок в расчётах налогов</div>
+              </div>
+              <div className="glass-card stat-card stat-purple bounce-anim" style={{ animationDelay: '0.3s', marginTop: 20, transform: 'translateX(-40px)' }}>
+                <div style={{ fontSize: 40, fontWeight: 800, color: '#805ad5' }}>10x</div>
+                <div style={{ color: '#A0AEC0', marginTop: 10 }}>Ускорение документооборота</div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer">
-        <div className="landing-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="logo-glow">
-            🤖 Hisob.<span style={{ color: '#4F8EF7' }}>AI</span>
-          </div>
-          <div style={{ color: '#A0AEC0', fontSize: 13 }}>
-            © 2026 Hisob.AI. Все права защищены. Разработано для бизнеса Узбекистана.
+      {/* Auth Modal Overlay */}
+      {authMode && (
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(10px)', zIndex: 9999 }}>
+          <div className="modal slide-up" style={{ maxWidth: 420, padding: 40, textAlign: 'center' }}>
+            <button className="modal-close" onClick={() => { setAuthMode(null); setOtpSent(false); }} style={{ position: 'absolute', top: 20, right: 24 }}>×</button>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10 }}>Вход в Hisob.AI</h2>
+            <p style={{ color: '#A0AEC0', fontSize: 14, marginBottom: 30 }}>Войдите, чтобы сохранить свои данные сервере</p>
+
+            {error && <div className="alert alert-warning" style={{ marginBottom: 20, textAlign: 'left' }}>❌ {error}</div>}
+
+            {authMode === 'choice' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <button className="btn btn-primary" onClick={handleGoogleLogin} style={{ padding: 14, background: '#fff', color: '#000', border: '1px solid #ccc' }}>
+                   Продолжить с Google
+                </button>
+                <div style={{ margin: '10px 0', color: '#4A5568', fontSize: 13 }}>ИЛИ</div>
+                <button className="btn btn-ghost" onClick={() => setAuthMode('phone')} style={{ padding: 14, background: '#171923' }}>
+                  📞 Войти по номеру телефона
+                </button>
+              </div>
+            )}
+
+            {authMode === 'phone' && !otpSent && (
+              <div style={{ textAlign: 'left' }}>
+                <label className="label">Номер телефона</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input className="input" placeholder="+998 90 123 45 67" value={phone} onChange={e => setPhone(e.target.value)} />
+                </div>
+                <button className="btn btn-primary" onClick={handlePhoneLogin} disabled={loading} style={{ width: '100%', marginTop: 20, padding: 14 }}>
+                  {loading ? 'Отправка...' : 'Получить СМС код'}
+                </button>
+              </div>
+            )}
+
+            {authMode === 'phone' && otpSent && (
+              <div style={{ textAlign: 'left' }}>
+                <label className="label">СМС код отправлен на {phone}</label>
+                <input className="input" placeholder="Введите код (например 123456)" value={otp} onChange={e => setOtp(e.target.value)} />
+                <button className="btn btn-primary" onClick={handleVerifyOtp} disabled={loading} style={{ width: '100%', marginTop: 20, padding: 14 }}>
+                  {loading ? 'Проверка...' : 'Подтвердить и войти'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }

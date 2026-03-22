@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
 import Layout from './components/Layout'
 import ChatPage from './pages/ChatPage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -20,16 +21,27 @@ const PAGES = {
 }
 
 export default function App() {
-  const [hasVisited, setHasVisited] = useState(() => localStorage.getItem('hisob_visited') === 'true')
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('chat')
   const [chatInitMsg, setChatInitMsg] = useState('')
 
-  const startApp = () => {
-    localStorage.setItem('hisob_visited', 'true')
-    setHasVisited(true)
-  }
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setLoading(false)
+    })
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    
+    return () => subscription.unsubscribe()
+  }, [])
 
-  if (!hasVisited) return <LandingPage onStart={startApp} />
+  if (loading) return <div style={{ background: '#0F1117', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>Загрузка...</div>
+
+  if (!session) return <LandingPage onLoggedIn={setSession} />
 
   const goToChat = (msg) => {
     setChatInitMsg(msg)

@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase'
+
 const NAV = [
   { id: 'chat',      icon: '💬', label: 'ИИ-Бухгалтер' },
   { id: 'documents', icon: '🧾', label: 'Документы' },
@@ -63,6 +65,14 @@ export default function Sidebar({ activeTab, setTab }) {
             <span>{n.label}</span>
           </button>
         ))}
+        <button
+          className="nav-item"
+          onClick={() => supabase.auth.signOut()}
+          style={{ width: '100%', textAlign: 'left', background: 'none', fontFamily: 'inherit', color: '#fc8181', marginTop: 'auto' }}
+        >
+          <span className="nav-icon">🚪</span>
+          <span>Выйти</span>
+        </button>
       </nav>
 
       {/* Footer */}

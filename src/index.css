@@ -335,3 +335,73 @@ tbody tr:last-child td { border-bottom: none; }
 .f-desc { color: #A0AEC0; font-size: 15px; line-height: 1.6; }
 
 .landing-footer { padding: 40px 0; background: #0d1117; border-top: 1px solid #2D3748; margin-top: 40px; }
+
+/* Advanced Parallax & Animations */
+.parallax-bg {
+  position: absolute;
+  top: -10vh; left: 0; right: 0; bottom: -10vh;
+  background: radial-gradient(circle at 50% 10%, rgba(79, 142, 247, 0.05), transparent 40%),
+              url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1" fill="%232D3748"/></svg>');
+  background-size: cover, 40px 40px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.glow-sphere.s3 { width: 600px; height: 600px; background: rgba(72, 187, 120, 0.08); bottom: -200px; left: 20%; filter: blur(140px); }
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes pulseShadow {
+  0% { box-shadow: 0 0 0 0 rgba(79, 142, 247, 0.4); }
+  70% { box-shadow: 0 0 0 15px rgba(79, 142, 247, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 142, 247, 0); }
+}
+
+.slide-up { animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.bounce-anim { animation: float 6s ease-in-out infinite; }
+.pulse-shadow { animation: pulseShadow 2s infinite; }
+
+.split-layout {
+  display: flex; gap: 60px;
+  align-items: center;
+  padding: 80px 0;
+}
+.split-text { flex: 1; }
+.split-visual {
+  flex: 1;
+  position: relative;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.glass-card {
+  background: rgba(23, 25, 35, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  max-width: 340px;
+}
+
+.mockup-glass {
+  background: rgba(13, 17, 23, 0.6);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center; justify-content: center;
+}
+
+@media (max-width: 800px) {
+  .split-layout { flex-direction: column; text-align: center; }
+  .split-visual { min-height: auto; margin-top: 40px; align-items: center; }
+  .glass-card { transform: none !important; margin: 10px auto !important; }
+}
