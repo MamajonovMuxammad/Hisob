@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const FIELDS = [
   { key: 'company',    label: 'Название организации',     ph: 'ООО "Ваш Бизнес"',          full: true },
@@ -12,26 +13,38 @@ const FIELDS = [
   { key: 'accountant', label: 'Главный бухгалтер',         ph: 'ИИ-Бухгалтер' },
 ]
 
-const STORAGE_KEY = 'hisob_settings'
-
-const load = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }
-  catch { return {} }
-}
-
 export default function SettingsPage() {
-  const [form, setForm] = useState(load)
+  const [form, setForm] = useState({})
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const save = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+  useEffect(() => {
+    async function fetchSettings() {
+      const { data } = await supabase.from('settings').select('*').limit(1).maybeSingle();
+      if (data) setForm(data);
+      setLoading(false);
+    }
+    fetchSettings();
+  }, [])
+
+  const save = async () => {
+    setLoading(true)
+    if (form.id) {
+      await supabase.from('settings').update({ ...form, updated_at: new Date() }).eq('id', form.id)
+    } else {
+      const { data } = await supabase.from('settings').insert(form).select().single()
+      if (data) setForm(data)
+    }
+    setLoading(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const reset = () => {
-    if (!confirm('Сбросить все настройки?')) return
-    localStorage.removeItem(STORAGE_KEY)
+  const reset = async () => {
+    if (!confirm('Сбросить все настройки в базе?')) return
+    if (form.id) {
+      await supabase.from('settings').delete().eq('id', form.id)
+    }
     setForm({})
   }
 
@@ -61,11 +74,11 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 22 }}>
-            <button className="btn btn-primary" onClick={save} style={{ padding: '11px 28px' }}>
-              {saved ? '✅ Сохранено!' : '💾 Сохранить'}
+            <button className="btn btn-primary" onClick={save} disabled={loading} style={{ padding: '11px 28px' }}>
+              {loading ? '💾 Загрузка...' : saved ? '✅ Сохранено в БД!' : '💾 Сохранить в БД'}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={reset}>🗑 Сбросить</button>
-            {saved && <span style={{ fontSize: 14, color: '#48bb78' }}>Данные сохранены в браузере</span>}
+            {saved && <span style={{ fontSize: 14, color: '#48bb78' }}>Данные сохранены в Supabase</span>}
           </div>
         </div>
 

@@ -43,3 +43,21 @@ alter table employees    enable row level security;
 create policy "Allow all for anon" on documents    for all using (true) with check (true);
 create policy "Allow all for anon" on transactions for all using (true) with check (true);
 create policy "Allow all for anon" on employees    for all using (true) with check (true);
+
+-- Settings table (Global MVP settings)
+create table if not exists settings (
+  id          bigint generated always as identity primary key,
+  company     text,
+  inn         text,
+  oked        text,
+  tax_system  text,
+  address     text,
+  bank        text,
+  account     text,
+  director    text,
+  accountant  text,
+  updated_at  timestamptz default now()
+);
+
+alter table settings enable row level security;
+create policy "Allow all for anon" on settings for all using (true) with check (true);

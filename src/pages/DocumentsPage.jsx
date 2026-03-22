@@ -11,7 +11,8 @@ const DOC_TYPES = [
   { icon: '💵', key: 'payslip', label: 'Расчётный лист', fields: ['ФИО сотрудника', 'ПИНФЛ и ИНПС', 'Должность', 'Оклад (сум)', 'Премия/Удержания', 'Месяц/год'] },
 ]
 
-async function generateDoc(type, fields, settings) {
+async function generateDoc(type, fields) {
+  const { data: settings } = await supabase.from('settings').select('*').limit(1).maybeSingle()
   const company = settings?.company || 'Ваша компания'
   const inn = settings?.inn || '—'
   const director = settings?.director || '—'
@@ -38,12 +39,11 @@ function CreateModal({ docType, onClose, onCreated }) {
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState('')
   const [error, setError] = useState('')
-  const settings = (() => { try { return JSON.parse(localStorage.getItem('hisob_settings') || '{}') } catch { return {} } })()
 
   const generate = async () => {
     setLoading(true); setError(''); setPreview('')
     try {
-      const text = await generateDoc(docType.label, form, settings)
+      const text = await generateDoc(docType.label, form)
       setPreview(text)
 
       const amount = parseFloat(form['Цена (сум)'] || form['Сумма (сум)'] || form['Оклад (сум)'] || 0)
