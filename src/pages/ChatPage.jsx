@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const HINTS = [
   'Выставить счёт-фактуру',
@@ -20,7 +22,7 @@ async function callAI(messages) {
   return data.text
 }
 
-function Message({ msg }) {
+function Message({ msg, index }) {
   const isAi = msg.role === 'ai'
   return (
     <div
@@ -41,32 +43,33 @@ function Message({ msg }) {
         {isAi ? '🤖' : '👤'}
       </div>
       <div style={{ maxWidth: '74%' }}>
-        <div style={{
+        <div id={`pdf-chat-${index}`} className={isAi ? "markdown-body" : ""} style={{
           background: isAi ? '#171923' : '#1e2a4a',
           border: `1px solid ${isAi ? '#2D3748' : '#2563eb44'}`,
           borderRadius: isAi ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
           padding: '12px 16px',
           fontSize: 14, lineHeight: 1.75,
-          whiteSpace: 'pre-wrap',
+          whiteSpace: isAi ? 'normal' : 'pre-wrap',
         }}>
-          {msg.text}
+          {isAi ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown> : msg.text}
         </div>
         {isAi && msg.text.length > 200 && (
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => navigator.clipboard.writeText(msg.text)}
-            >📋 Копировать</button>
+            >📋 Скопировать</button>
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => {
-                const b = new Blob([msg.text], { type: 'text/plain' })
-                const a = document.createElement('a')
-                a.href = URL.createObjectURL(b)
-                a.download = 'document.txt'
-                a.click()
+                const prtContent = document.getElementById(`pdf-chat-${index}`);
+                const WinPrint = window.open('', '', 'left=0,top=0,width=800,height=900');
+                WinPrint.document.write(`<html><head><title>Документ</title><style>body{font-family:sans-serif;padding:40px;color:#000;line-height:1.6} table{width:100%;border-collapse:collapse;margin:20px 0} th,td{border:1px solid #333;padding:10px;text-align:left} h1,h2,h3{margin-bottom:10px}</style></head><body>${prtContent.innerHTML}</body></html>`);
+                WinPrint.document.close();
+                WinPrint.focus();
+                WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
               }}
-            >⬇️ Скачать</button>
+            >🖨️ Скачать PDF / Печать</button>
           </div>
         )}
       </div>
@@ -129,7 +132,7 @@ export default function ChatPage({ initMsg, clearInitMsg }) {
         padding: '16px 28px',
         display: 'flex', flexDirection: 'column', gap: 16,
       }}>
-        {msgs.map((m, i) => <Message key={i} msg={m} />)}
+        {msgs.map((m, i) => <Message key={i} msg={m} index={i} />)}
 
         {loading && (
           <div style={{ display: 'flex', gap: 12 }}>

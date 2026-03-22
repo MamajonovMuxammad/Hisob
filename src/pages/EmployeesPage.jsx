@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const fmt = n => Number(n || 0).toLocaleString('ru-RU')
 
@@ -129,20 +131,23 @@ function PayslipModal({ emp, onClose }) {
           <div style={{ textAlign: 'center', padding: '40px 0' }} className="typing"><span /><span /><span /></div>
         ) : (
           <>
-            <div style={{
+            <div id={`pdf-payslip-${emp.id}`} className="markdown-body" style={{
               background: '#0F1117', border: '1px solid #2D3748', borderRadius: 12,
-              padding: 16, fontSize: 13, lineHeight: 1.8,
-              whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto',
-            }}>{text}</div>
+              padding: 20, fontSize: 13, lineHeight: 1.6,
+              maxHeight: 400, overflowY: 'auto',
+            }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(text)}>📋 Копировать</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(text)}>📋 Скопировать текст</button>
               <button className="btn btn-ghost btn-sm" onClick={() => {
-                const b = new Blob([text], { type: 'text/plain' })
-                const a = document.createElement('a')
-                a.href = URL.createObjectURL(b)
-                a.download = `расчётный_лист_${emp.name}.txt`
-                a.click()
-              }}>⬇️ Скачать</button>
+                const prtContent = document.getElementById(`pdf-payslip-${emp.id}`);
+                const WinPrint = window.open('', '', 'left=0,top=0,width=800,height=900');
+                WinPrint.document.write(`<html><head><title>Расчётный лист - ${emp.name}</title><style>body{font-family:sans-serif;padding:40px;color:#000;line-height:1.6} table{width:100%;border-collapse:collapse;margin:20px 0} th,td{border:1px solid #333;padding:10px;text-align:left} h1,h2,h3{margin-bottom:10px}</style></head><body>${prtContent.innerHTML}</body></html>`);
+                WinPrint.document.close();
+                WinPrint.focus();
+                WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
+              }}>🖨️ Скачать PDF / Печать</button>
             </div>
           </>
         )}
