@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../components/Toast'
 
 const FIELDS = [
   { key: 'company',    label: 'Название организации',     ph: 'ООО "Ваш Бизнес"',          full: true },
@@ -14,6 +15,7 @@ const FIELDS = [
 ]
 
 export default function SettingsPage() {
+  const toast = useToast()
   const [form, setForm] = useState({})
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,6 +39,7 @@ export default function SettingsPage() {
     }
     setLoading(false)
     setSaved(true)
+    toast('Настройки сохранены ✓')
     setTimeout(() => setSaved(false), 2500)
   }
 
