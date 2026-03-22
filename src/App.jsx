@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Layout from './components/Layout'
 import ChatPage from './pages/ChatPage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -7,6 +7,7 @@ import TaxPage from './pages/TaxPage'
 import EmployeesPage from './pages/EmployeesPage'
 import CalendarPage from './pages/CalendarPage'
 import SettingsPage from './pages/SettingsPage'
+import LandingPage from './pages/LandingPage'
 
 const PAGES = {
   chat: ChatPage,
@@ -19,8 +20,16 @@ const PAGES = {
 }
 
 export default function App() {
+  const [hasVisited, setHasVisited] = useState(() => localStorage.getItem('hisob_visited') === 'true')
   const [tab, setTab] = useState('chat')
   const [chatInitMsg, setChatInitMsg] = useState('')
+
+  const startApp = () => {
+    localStorage.setItem('hisob_visited', 'true')
+    setHasVisited(true)
+  }
+
+  if (!hasVisited) return <LandingPage onStart={startApp} />
 
   const goToChat = (msg) => {
     setChatInitMsg(msg)

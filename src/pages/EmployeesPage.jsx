@@ -167,6 +167,7 @@ function PayslipModal({ emp, onClose }) {
                 
                 window.html2pdf().set({
                   margin: 10,
+                  pagebreak: { mode: 'avoid-all' },
                   filename: `расчётный_лист_${emp.name}.pdf`,
                   image: { type: 'jpeg', quality: 0.98 },
                   html2canvas: { scale: 2 },

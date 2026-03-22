@@ -34,7 +34,7 @@ ${JSON.stringify(fields, null, 2)}
   return data.text
 }
 
-function CreateModal({ docType, onClose, onCreated }) {
+function CreateDocumentView({ docType, onClose, onCreated }) {
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState('')
@@ -47,7 +47,7 @@ function CreateModal({ docType, onClose, onCreated }) {
       setPreview(text)
 
       const amount = parseFloat(form['Цена (сум)'] || form['Сумма (сум)'] || form['Оклад (сум)'] || 0)
-      const name = `${docType.label} — ${form['Кому (организация/ФИО)'] || form['Заказчик'] || form['Получатель'] || form['ФИО сотрудника'] || 'Новый'}`
+      const name = `${docType.label} — ${form['Кому (Организация/ФИО)'] || form['Заказчик (Организация/ФИО)'] || form['Заказчик'] || form['Получатель'] || form['ФИО сотрудника'] || 'Новый'}`
 
       const { error: dbErr } = await supabase.from('documents').insert({
         type: docType.label,
@@ -66,14 +66,15 @@ function CreateModal({ docType, onClose, onCreated }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal fade-up" style={{ maxWidth: 640 }}>
-        <div className="modal-header">
-          <span className="modal-title">{docType.icon} {docType.label}</span>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
+    <div className="fade-up" style={{ padding: '24px 28px', maxWidth: 1000, margin: '0 auto' }}>
+      <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ marginBottom: 20 }}>← Назад к списку</button>
+      <div className="page-header">
+        <h1 className="page-title">{docType.icon} Создание: {docType.label}</h1>
+        <p className="page-subtitle">Заполните данные, и ИИ сгенерирует готовый документ</p>
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           {docType.fields.map(f => (
             <div key={f} className="form-group" style={{ marginBottom: 0 }}>
               <label className="label">{f}</label>
@@ -86,24 +87,20 @@ function CreateModal({ docType, onClose, onCreated }) {
             </div>
           ))}
         </div>
-
-        <button className="btn btn-primary" onClick={generate} disabled={loading} style={{ width: '100%', padding: '12px' }}>
-          {loading ? 'Генерация...' : '✨ Сгенерировать через ИИ'}
+        
+        <button className="btn btn-primary btn-lg" onClick={generate} disabled={loading} style={{ width: '100%', marginTop: 24 }}>
+          {loading ? 'Генерация...' : '✨ Сгенерировать документ'}
         </button>
+      </div>
 
-        {error && <div className="alert alert-warning" style={{ marginTop: 12 }}>❌ {error}</div>}
+      {error && <div className="alert alert-warning" style={{ marginBottom: 24 }}>❌ {error}</div>}
 
-        {preview && (
-          <div style={{ marginTop: 16 }}>
-            <div id={`pdf-create-${docType.key}`} className="markdown-body" style={{
-              background: '#0F1117', border: '1px solid #2D3748', borderRadius: 12,
-              padding: 20, fontSize: 13, lineHeight: 1.6,
-              maxHeight: 320, overflowY: 'auto',
-            }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(preview)}>📋 Скопировать текст</button>
+      {preview && (
+        <div className="card fade-up" style={{ padding: 30 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700 }}>📄 Предпросмотр документа</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(preview)}>📋 Скопировать</button>
               <button className="btn btn-ghost btn-sm" onClick={() => {
                 const prtContent = document.getElementById(`pdf-create-${docType.key}`);
                 const WinPrint = window.open('', '', 'left=0,top=0,width=800,height=900');
@@ -112,7 +109,7 @@ function CreateModal({ docType, onClose, onCreated }) {
                 WinPrint.focus();
                 WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
               }}>🖨️ Печать</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => {
+              <button className="btn btn-primary btn-sm" onClick={() => {
                 const element = document.getElementById(`pdf-create-${docType.key}`);
                 const clone = element.cloneNode(true);
                 clone.style.background = '#ffffff';
@@ -132,6 +129,7 @@ function CreateModal({ docType, onClose, onCreated }) {
                 window.html2pdf().set({
                   margin: 10,
                   filename: `${docType.label}.pdf`,
+                  pagebreak: { mode: 'avoid-all' },
                   image: { type: 'jpeg', quality: 0.98 },
                   html2canvas: { scale: 2 },
                   jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -139,62 +137,72 @@ function CreateModal({ docType, onClose, onCreated }) {
               }}>⬇️ Скачать PDF</button>
             </div>
           </div>
-        )}
-      </div>
+          <div id={`pdf-create-${docType.key}`} className="markdown-body" style={{
+            background: '#ffffff', color: '#000', borderRadius: 8,
+            padding: '40px 50px', fontSize: 13, lineHeight: 1.6,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function ViewModal({ doc, onClose }) {
+function FullScreenView({ doc, onClose }) {
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal fade-up" style={{ maxWidth: 640 }}>
-        <div className="modal-header">
-          <span className="modal-title">{doc.name}</span>
-          <button className="modal-close" onClick={onClose}>×</button>
+    <div className="fade-up" style={{ padding: '24px 28px', maxWidth: 1000, margin: '0 auto' }}>
+      <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ marginBottom: 20 }}>← Назад к списку</button>
+      
+      <div className="card" style={{ padding: 30 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700 }}>{doc.name}</h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(doc.content || '')}>📋 Скопировать</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => {
+              const prtContent = document.getElementById(`pdf-view-${doc.id}`);
+              const WinPrint = window.open('', '', 'left=0,top=0,width=800,height=900');
+              WinPrint.document.write(`<html><head><title>${doc.name}</title><style>body{font-family:sans-serif;padding:40px;color:#000;line-height:1.6} table{width:100%;border-collapse:collapse;margin:20px 0} th,td{border:1px solid #333;padding:10px;text-align:left} h1,h2,h3{margin-bottom:10px}</style></head><body>${prtContent.innerHTML}</body></html>`);
+              WinPrint.document.close();
+              WinPrint.focus();
+              WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
+            }}>🖨️ Печать</button>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              const element = document.getElementById(`pdf-view-${doc.id}`);
+              const clone = element.cloneNode(true);
+              clone.style.background = '#ffffff';
+              clone.style.color = '#000000';
+              clone.style.padding = '40px';
+              clone.style.borderRadius = '0';
+              clone.style.fontSize = '12px';
+              clone.style.maxHeight = 'none';
+              clone.style.overflow = 'visible';
+              const tds = clone.querySelectorAll('th, td');
+              tds.forEach(td => td.style.border = '1px solid #ccc');
+              const ths = clone.querySelectorAll('th');
+              ths.forEach(th => th.style.background = '#f5f5f5');
+              const headings = clone.querySelectorAll('h1, h2, h3, h4');
+              headings.forEach(h => h.style.color = '#000000');
+              
+              window.html2pdf().set({
+                margin: 10,
+                filename: `${doc.name}.pdf`,
+                pagebreak: { mode: 'avoid-all' },
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              }).from(clone).save();
+            }}>⬇️ Скачать PDF</button>
+          </div>
         </div>
+
         <div id={`pdf-view-${doc.id}`} className="markdown-body" style={{
-          background: '#0F1117', border: '1px solid #2D3748', borderRadius: 12,
-          padding: 20, fontSize: 13, lineHeight: 1.6,
-          maxHeight: 420, overflowY: 'auto',
+          background: '#ffffff', color: '#000', borderRadius: 8,
+          padding: '40px 50px', fontSize: 13, lineHeight: 1.6,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content || '(нет содержимого)'}</ReactMarkdown>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard.writeText(doc.content || '')}>📋 Скопировать текст</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => {
-            const prtContent = document.getElementById(`pdf-view-${doc.id}`);
-            const WinPrint = window.open('', '', 'left=0,top=0,width=800,height=900');
-            WinPrint.document.write(`<html><head><title>${doc.name}</title><style>body{font-family:sans-serif;padding:40px;color:#000;line-height:1.6} table{width:100%;border-collapse:collapse;margin:20px 0} th,td{border:1px solid #333;padding:10px;text-align:left} h1,h2,h3{margin-bottom:10px}</style></head><body>${prtContent.innerHTML}</body></html>`);
-            WinPrint.document.close();
-            WinPrint.focus();
-            WinPrint.setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 250);
-          }}>🖨️ Печать</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => {
-            const element = document.getElementById(`pdf-view-${doc.id}`);
-            const clone = element.cloneNode(true);
-            clone.style.background = '#ffffff';
-            clone.style.color = '#000000';
-            clone.style.padding = '40px';
-            clone.style.borderRadius = '0';
-            clone.style.fontSize = '12px';
-            clone.style.maxHeight = 'none';
-            clone.style.overflow = 'visible';
-            const tds = clone.querySelectorAll('th, td');
-            tds.forEach(td => td.style.border = '1px solid #ccc');
-            const ths = clone.querySelectorAll('th');
-            ths.forEach(th => th.style.background = '#f5f5f5');
-            const headings = clone.querySelectorAll('h1, h2, h3, h4');
-            headings.forEach(h => h.style.color = '#000000');
-            
-            window.html2pdf().set({
-              margin: 10,
-              filename: `${doc.name}.pdf`,
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2 },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).from(clone).save();
-          }}>⬇️ Скачать PDF</button>
         </div>
       </div>
     </div>
@@ -223,6 +231,14 @@ export default function DocumentsPage() {
   }
 
   const fmt = n => Number(n || 0).toLocaleString('ru-RU')
+
+  if (activeModal) {
+    return <CreateDocumentView docType={activeModal} onClose={() => setActiveModal(null)} onCreated={() => { fetchDocs(); setActiveModal(null) }} />
+  }
+
+  if (viewDoc) {
+    return <FullScreenView doc={viewDoc} onClose={() => setViewDoc(null)} />
+  }
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -310,14 +326,6 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {activeModal && (
-        <CreateModal
-          docType={activeModal}
-          onClose={() => setActiveModal(null)}
-          onCreated={() => { fetchDocs() }}
-        />
-      )}
-      {viewDoc && <ViewModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

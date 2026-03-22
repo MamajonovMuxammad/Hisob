@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { supabase } from '../lib/supabase'
+
+const DEFAULT_MSG = { role: 'ai', text: 'Ассалому алейкум! 👋 Я ваш ИИ-бухгалтер для Узбекистана. Помогу с налогами, документами и учётом. Что вас интересует?' }
 
 const HINTS = [
   'Выставить счёт-фактуру',
@@ -92,6 +95,7 @@ function Message({ msg, index }) {
                 window.html2pdf().set({
                   margin: 10,
                   filename: `чат_hisob_ai.pdf`,
+                  pagebreak: { mode: 'avoid-all' },
                   image: { type: 'jpeg', quality: 0.98 },
                   html2canvas: { scale: 2 },
                   jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -106,12 +110,46 @@ function Message({ msg, index }) {
 }
 
 export default function ChatPage({ initMsg, clearInitMsg }) {
-  const [msgs, setMsgs] = useState([
-    { role: 'ai', text: 'Ассалому алейкум! 👋 Я ваш ИИ-бухгалтер для Узбекистана. Помогу с налогами, документами и учётом. Что нас интересует?' },
-  ])
+  const [msgs, setMsgs] = useState([DEFAULT_MSG])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  
+  // Chat History States
+  const [chats, setChats] = useState([])
+  const [activeChatId, setActiveChatId] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
   const endRef = useRef(null)
+
+  useEffect(() => {
+    fetchChats()
+  }, [])
+
+  const fetchChats = async () => {
+    const { data } = await supabase.from('chats').select('id, title').order('updated_at', { ascending: false })
+    if (data) setChats(data)
+  }
+
+  const loadChat = async (id) => {
+    const { data } = await supabase.from('chats').select('messages').eq('id', id).single()
+    if (data) {
+      setMsgs(data.messages)
+      setActiveChatId(id)
+    }
+  }
+
+  const newChat = () => {
+    setMsgs([DEFAULT_MSG])
+    setActiveChatId(null)
+  }
+
+  const deleteChat = async (id, e) => {
+    e.stopPropagation()
+    if (!confirm('Удалить этот чат?')) return
+    await supabase.from('chats').delete().eq('id', id)
+    if (activeChatId === id) newChat()
+    fetchChats()
+  }
 
   useEffect(() => {
     if (initMsg) {
@@ -131,9 +169,26 @@ export default function ChatPage({ initMsg, clearInitMsg }) {
     setMsgs(newMsgs)
     setInput('')
     setLoading(true)
+
+    // DB update
+    let chatId = activeChatId
+    if (!chatId) {
+      const title = t.slice(0, 30) + (t.length > 30 ? '...' : '')
+      const { data } = await supabase.from('chats').insert({ title, messages: newMsgs }).select('id').single()
+      if (data) {
+        chatId = data.id
+        setActiveChatId(chatId)
+        fetchChats()
+      }
+    } else {
+      await supabase.from('chats').update({ messages: newMsgs, updated_at: new Date() }).eq('id', chatId)
+    }
+
     try {
       const reply = await callAI(newMsgs)
-      setMsgs(m => [...m, { role: 'ai', text: reply }])
+      const finalMsgs = [...newMsgs, { role: 'ai', text: reply }]
+      setMsgs(finalMsgs)
+      if (chatId) await supabase.from('chats').update({ messages: finalMsgs }).eq('id', chatId)
     } catch (e) {
       setMsgs(m => [...m, {
         role: 'ai',
@@ -145,12 +200,58 @@ export default function ChatPage({ initMsg, clearInitMsg }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', height: '100%', position: 'relative' }}>
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div style={{
+          width: 260, background: '#0F1117', borderRight: '1px solid #2D3748',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{ padding: 16 }}>
+            <button className="btn btn-primary" onClick={newChat} style={{ width: '100%' }}>
+              + Новый диалог
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 16px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#4A5568', textTransform: 'uppercase', marginBottom: 12, paddingLeft: 4 }}>История чатов</div>
+            {chats.map(c => (
+              <div
+                key={c.id}
+                onClick={() => loadChat(c.id)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  marginBottom: 6,
+                  cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  background: c.id === activeChatId ? '#1e2a4a' : 'transparent',
+                  color: c.id === activeChatId ? '#fff' : '#A0AEC0',
+                  border: `1px solid ${c.id === activeChatId ? '#2563eb44' : 'transparent'}`
+                }}
+              >
+                <div style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  💬 {c.title}
+                </div>
+                <button 
+                  onClick={(e) => deleteChat(c.id, e)}
+                  style={{ background: 'none', border: 'none', color: '#fc8181', cursor: 'pointer', opacity: c.id === activeChatId ? 1 : 0.4 }}
+                >×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#13151c' }}>
+      
       {/* Header */}
-      <div style={{ padding: '20px 28px 0' }}>
-        <div className="page-header">
-          <h1 className="page-title">💬 ИИ-Бухгалтер</h1>
-          <p className="page-subtitle">Задайте любой вопрос или попросите составить документ</p>
+      <div style={{ padding: '20px 28px 0', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <button className="btn-icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? '◀' : '▶'}
+        </button>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1 className="page-title" style={{ fontSize: 20 }}>💬 ИИ-Бухгалтер</h1>
         </div>
       </div>
 
@@ -182,18 +283,10 @@ export default function ChatPage({ initMsg, clearInitMsg }) {
       </div>
 
       {/* Input area */}
-      <div style={{
-        padding: '14px 28px 24px',
-        borderTop: '1px solid #2D3748',
-      }}>
+      <div style={{ padding: '14px 28px 24px', borderTop: '1px solid #2D3748' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
           {HINTS.map(h => (
-            <button
-              key={h}
-              className="btn btn-ghost btn-sm"
-              style={{ borderRadius: 20 }}
-              onClick={() => send(h)}
-            >{h}</button>
+            <button key={h} className="btn btn-ghost btn-sm" style={{ borderRadius: 20 }} onClick={() => send(h)}>{h}</button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -205,15 +298,11 @@ export default function ChatPage({ initMsg, clearInitMsg }) {
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
             style={{ flex: 1 }}
           />
-          <button
-            className="btn btn-primary"
-            onClick={() => send()}
-            disabled={loading || !input.trim()}
-            style={{ minWidth: 110, flexShrink: 0 }}
-          >
+          <button className="btn btn-primary" onClick={() => send()} disabled={loading || !input.trim()} style={{ minWidth: 110, flexShrink: 0 }}>
             Отправить ↗
           </button>
         </div>
+      </div>
       </div>
     </div>
   )

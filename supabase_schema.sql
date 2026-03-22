@@ -61,3 +61,14 @@ create table if not exists settings (
 
 alter table settings enable row level security;
 create policy "Allow all for anon" on settings for all using (true) with check (true);
+
+-- Chats table (Chat History)
+create table if not exists chats (
+  id          bigint generated always as identity primary key,
+  title       text not null,
+  messages    jsonb not null default '[]',
+  updated_at  timestamptz default now()
+);
+
+alter table chats enable row level security;
+create policy "Allow all for anon" on chats for all using (true) with check (true);
